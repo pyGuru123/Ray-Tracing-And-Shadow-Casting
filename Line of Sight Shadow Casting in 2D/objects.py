@@ -1,3 +1,4 @@
+import math
 import pygame
 
 WORLDWIDTH = 40
@@ -124,6 +125,54 @@ def convertTileMapToPolyMap(sx, sy, w, h, tile_size, pitch, world):
 						world[i].edge_exist[SOUTH] = True
 
 	return world, vecEdges
+
+def calculateVisibilityPolygon(ox, oy, radius, vecEdges):
+	vecVisibilityPolygonPoints= []
+	
+	for edge in vecEdges:
+		for i in range(2):
+			bValid = False
+			rdx = (edge.sx if i == 0 else edge.ex) - ox
+			rdy = (edge.sy if i == 0 else edge.ey) - oy
+
+			base_ang = math.atan2(rdy, rdx)
+			ang = 0
+
+			for j in range(3):
+				if j == 0:
+					ang = base_ang - 0.0001
+				if j == 1:
+					ang = base_ang
+				if j == 2:
+					ang = base_ang + 0.0001
+
+				rdx = radius * math.cos(ang)
+				rdy = radius * math.sin(ang)
+
+				min_t1 = float('inf')
+				min_px, min_py, min_ang = 0, 0, 0
+
+				for e2 in vecEdges:
+					sdx = e2.ex - e2.sx
+					sdy = e2.ey - e2.sy
+
+					if abs(sdx - rdx) > 0 and abs(sdy - rdy) > 0:
+						t2 = (rdx * (e2.sy - oy) + (rdy * (ox - e2.sx))) / (sdx * rdy - sdy * rdx)
+						t1 = (e2.sx + sdx * t2 - ox) / rdx
+
+						if t1 > 0 and t2 >= 0 and t2 <= 1:
+							if t1 < min_t1:
+								min_t1 = t1
+								min_px = ox + rdx * t1
+								min_py = oy + rdy * t1
+								min_ang = math.atan2(min_py - oy, min_px - ox)
+								bValid = True
+				if bValid:
+					vecVisibilityPolygonPoints.append((min_ang, min_px, min_py))
+
+	vecVisibilityPolygonPoints = list(set(vecVisibilityPolygonPoints))
+	vecVisibilityPolygonPoints.sort(key= lambda t : t[0])
+	return vecVisibilityPolygonPoints
 
 def draw_grid(win):
 	for i in range(31):
